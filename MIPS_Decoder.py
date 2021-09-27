@@ -8,8 +8,10 @@ MIPS Decoder Class
 
 default constructor
 
-convert_to_asm(string Instruct_32bit) -> String cmd_r0_r1_r2 // error check before conversion
+convert_to_asm(string Instruct_32bit) -> String cmd_r0_r1_r2 
 cmd_r0_r1_r2 = None if Error Occur
+
+getCmd(self, String opcode, String func) -> String cmd_asm, String cmd_type
 
 getSyntax_hex_asm(string Instruct_32bit, string cmd)-> String cmd_r0_r1_r2
 
@@ -42,9 +44,26 @@ class MyClass:
             if Value not in self.Hex_char_set:
                 return None 
         # TODO: opcode and func index
-        opcode = instruct_32bit[:]
-        func = instruct_32bit[:]
-        cmd_hex = opcode+"_"+func
+        opcode = instruct_32bit[:] + ""
+        func = instruct_32bit[:] + ""
+        
+        (cmd_asm, cmd_type) = self.getCmd(opcode,func)
+        (r0,r1,r2) = self.getSyntax_hex_asm(cmd_asm, cmd_type)
+        
+        asm = ""
+        if r2 != None:
+            asm = cmd_asm + " " + r0 +", "+r1 +", "r2
+        else:
+            asm = cmd_asm + " " + r0 +", "+r1
+        
+        return asm
+    
+            
+    def getCmd(self, String opcode, String func):  
+        cmd_hex = opcode+"_X"
+        if opcode == "00":
+            cmd_hex = opcode+"_"+func
+            
         (cmd_asm, cmd_type) = self.cmd_hashmap[cmd_hex]
         
         self.rs = instruct_32bit[:]# TODO: rs index
@@ -55,16 +74,7 @@ class MyClass:
         else:
             self.immediate = instruct_32bit[:] # TODO:  immediate index
         
-        (r0,r1,r2) = self.getSyntax_hex_asm(cmd_asm, cmd_type)
-        asm = ""
-        if r2 != None:
-            asm = cmd_asm + " " + r0 +", "+r1 +", "r2
-        else:
-            asm = cmd_asm + " " + r0 +", "+r1
-        
-        return asm
-            
-                
+        return (cmd_asm, cmd_type)
         
     def getSyntax_hex_asm(self,cmd_asm, cmd_type):
         
