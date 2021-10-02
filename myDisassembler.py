@@ -109,8 +109,8 @@ class MIPSDecoder(object):
             "000000_110100":("sc","I"),#hex 38 == b 0011 0100
             "101001_X":("sh","I"),#hex 29 == b 0010 1001
             "101011_X":("sw","I"),#hex 2b == b 0010 1011
-            "100010 _X":("sub","R"),#hex 0_22 == b 0..._0010 0010 
-            "100011_X":("subu","R"),#hex 0_23 == b 0..._0010 0011 
+            "000000_100010tes":("sub","R"),#hex 0_22 == b 0..._0010 0010 
+            "000000_100011":("subu","R"),#hex 0_23 == b 0..._0010 0011 
             }
         self.reg_hashmap = {#   reg_index:hex register_asm
             0:"zero",
@@ -154,11 +154,12 @@ class MIPSDecoder(object):
             cmd/opcode_func exist
         """ 
         if len(instruct_32bit) != 32:
+            print("error: instruct length")
             return None
         
         for value in instruct_32bit:
             if value not in {"0","1"}:
-                print("not binary")
+                print("error: non binarny char")
                 return None 
         
         self.instruction["opcode"] = instruct_32bit[0:6] + ""
@@ -167,6 +168,7 @@ class MIPSDecoder(object):
         (cmd_asm, cmd_type) = self.getCmd(self.instruction["opcode"],self.instruction["func"] )
         
         if (cmd_asm, cmd_type) == (None,None):
+            print("error: command not found")
             return None
         
         self.current_PC = hex(pc_line * 4)
@@ -218,7 +220,7 @@ class MIPSDecoder(object):
                 r1 = "$"+self.instruction["rs"]
                 if cmd_asm in {"beq", "bne"}: #branch
                     # Addr_#### relative offset (0004/line) index capture addresses another function to render adress
-                    r2 = "Addr_" + storeJumpAddress(self.instruction["immediate"]) # check if address is out of bounds
+                    r2 = "Addr_" + self.storeJumpAddress(self.instruction["immediate"]) # check if address is out of bounds
                     if r2 == "Addr_":
                         return (None, None, None)
                 elif cmd_asm in {"andi", "ori"}: #logical immediate
@@ -242,6 +244,7 @@ class MIPSDecoder(object):
         addr_base16 = hex(int(addr_base2, 2))
         #check address not out of bounds != Address -> infinite loop
         if addr_base16 > self.max_PC or addr_base16 == self.current_PC:
+            print("error: outofbounds/ infinite loop ")
             return ""
         else:
             #store hex
@@ -265,8 +268,8 @@ class BinaryStrOp:
         return sign + base10
            
     def invert(base2):
-        b_num = base2
-        value = base2
+        b_num = list(base2)
+        value = list(base2)
         
         for i in range(len(b_num)):
             digit = b_num.pop()
@@ -278,14 +281,11 @@ class BinaryStrOp:
         return "".join(value)
         
     def add(base2):
-        b_num = base2
-        value = 0
-        for i in range(len(b_num)):
-        	digit = b_num.pop()
-        	if digit == '1':
-        		value = value + pow(2, i)
+        b_num = int(base2,2) + 1
+        value = format(b_num, "0"+str(len(base2))+"b")
+        
                 
-        return value
+        return str(value)
         
     
 f = input("myDiassembler ")
