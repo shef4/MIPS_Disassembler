@@ -7,7 +7,6 @@ Created on Sun Sep 26 18:47:19 2021
 MIPS Dissasbler Application
 
 
-
 class MIPSDecoder:
     default constructor
     convert_to_asm(string Instruct_32bit_binary) -> String cmd_r0_r1_r2 
@@ -25,8 +24,13 @@ None/empty if Error Occurs
 """
 import sys 
 
-class MIPSDisassembler: """Reads .obj files, converts 32bit MIPS Code to MIPS Assembly, writes assembly to .s file"""
-    def __init__(filename):
+
+
+
+
+class MIPSDisassembler(object): 
+    """Reads .obj files, converts 32bit MIPS Code to MIPS Assembly, writes assembly to .s file"""
+    def __init__(self, filename):
         hex_file = open(filename, 'r')
         self.hex_cmd_lines = hex_file.readlines()
         
@@ -40,42 +44,43 @@ class MIPSDisassembler: """Reads .obj files, converts 32bit MIPS Code to MIPS As
         asm_file.close()
     
     def convertfile(self, hex_lines):
-            asm_lines = list()
-            
-            #loops through each line with line pointer
-            for index, cmd_line in enumerate(hex_lines):
-                asm_cmd = self.md.convert_to_asm(cmd_line, index)
-                if asm_cmd != None:
-                    asm_lines.append(asm_cmd)
-                else:
-                    print("Cannot Disasseble {" + cmd_line +"} at line " + self.md.current_PC )
-            
-            return asm_lines
+        asm_lines = list()
+        
+        #loops through each line with line pointer
+        for index, cmd_line in enumerate(hex_lines):
+            print(format(int(cmd_line, 16), "032b"))
+            asm_cmd = self.md.convert_to_asm(format(int(cmd_line, 16), "032b"), index)
+            if asm_cmd != None:
+                asm_lines.append(asm_cmd)
+            else:
+                print("Cannot Disasseble {" + cmd_line +"} at line " + self.md.current_PC )
+        
+        return asm_lines
             
     def render_jumps(self, asm_lines):
-            #loops through each line with line pointer
-            for index,asm_line in asm_lines: 
-                current_PC = hex(index*4)
-                if current_PC in self.md.jump_Addr:
-                    asm_line = "Addr_"+current_PC+": " + asm_line
-                    asm_lines[index] = asm_line
-                    
-            return asm_lines
-                       
+        #loops through each line with line pointer
+        for index,asm_line in enumerate(asm_lines): 
+            current_PC = hex(index*4)
+            if current_PC in self.md.jump_Addr:
+                asm_line = "Addr_"+current_PC+": " + asm_line
+                asm_lines[index] = asm_line
+                
+        return asm_lines
 
-class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with Error Check""" 
+class MIPSDecoder(object):
+    """converts 32bit hex instructions to MIPS Assembly code with Error Check"""
     def __init__(self, max_PC):
         self.max_PC = hex(max_PC*4)
-        self.current_PC = None #store current PC as hex
+        self.current_PC = hex(0) #store current PC as hex
         self.jump_Addr = [] #(outputline addr[0xaddr%0x0004])
         self.instruction = {
             "opcode" : None,
             "func" : None,
             "rd" : None,
-            "rs" = None,
-            "rt" = None,
-            "shamt" = None,
-            "immediate" = None
+            "rs" : None,
+            "rt" : None,
+            "shamt" : None,
+            "immediate" : None
             }
         self.cmd_hashmap = {#Opcode[0:6]_func[26:] /X : (asm,cmdtype)
             "000000_100000":("add","R"), #hex 0_20 == b 0..._0010 0000 
@@ -107,6 +112,40 @@ class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with
             "100010 _X":("sub","R"),#hex 0_22 == b 0..._0010 0010 
             "100011_X":("subu","R"),#hex 0_23 == b 0..._0010 0011 
             }
+        self.reg_hashmap = {#   reg_index:hex register_asm
+            0:"zero",
+            1:"at",
+            2:"v0",
+            3:"v1",
+            4:"a0",
+            5:"a1",
+            6:"a2",
+            7:"a3",
+            8:"t0",
+            9:"t1",
+            10:"t2",
+            11:"t3",
+            12:"t4",
+            13:"t5",
+            14:"t6",
+            15:"t7",
+            16:"s0",
+            17:"s1",
+            18:"s2",
+            19:"s3",
+            20:"s4",
+            21:"s5",
+            22:"s6",
+            23:"s7",
+            24:"t8",
+            25:"t9",
+            26:"k0",
+            27:"k1",
+            28:"gp",
+            29:"sp",
+            30:"fp",
+            31:"ra"
+            }
            
     def convert_to_asm(self, instruct_32bit , pc_line):
         """error check:
@@ -119,6 +158,7 @@ class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with
         
         for value in instruct_32bit:
             if value not in {"0","1"}:
+                print("not binary")
                 return None 
         
         self.instruction["opcode"] = instruct_32bit[0:6] + ""
@@ -130,11 +170,11 @@ class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with
             return None
         
         self.current_PC = hex(pc_line * 4)
-        self.instruction["rs"] = BinaryStrOp.getConstant(instruct_32bit[6:11], isSigned = False)#  rs index
-        self.instruction["rt"] = BinaryStrOp.getConstant(instruct_32bit[11:16], isSigned = False)#  rt index
+        self.instruction["rs"] = self.reg_hashmap[int(BinaryStrOp.getConstant(base2 = instruct_32bit[6:11], isSigned = False))]#  rs index
+        self.instruction["rt"] = self.reg_hashmap[int(BinaryStrOp.getConstant(base2 = instruct_32bit[11:16], isSigned = False))]#  rt index
         if cmd_type == "R":
-            self.instruction["rd"] = BinaryStrOp.getConstant(instruct_32bit[16:20], isSigned = False) #  rd index
-            self.instruction["shamt"] = BinaryStrOp.getConstant(instruct_32bit[20:26], isSigned = False)  #shamt index
+            self.instruction["rd"] = self.reg_hashmap[int(BinaryStrOp.getConstant(base2 =instruct_32bit[16:20], isSigned = False))] #  rd index
+            self.instruction["shamt"] = BinaryStrOp.getConstant(base2 =instruct_32bit[20:26], isSigned = False)  #shamt index
         else:
             self.instruction["immediate"] = instruct_32bit[16:] #  immediate index
             
@@ -146,7 +186,7 @@ class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with
         
         asm = ""
         if r2 != None:
-            asm = cmd_asm + " " + r0 +", "+r1 +", "r2
+            asm = cmd_asm + " " + r0 +", "+r1 +", "+ r2
         else:
             asm = cmd_asm + " " + r0 +", "+r1 
         
@@ -171,22 +211,24 @@ class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with
             r0 = "$"+self.instruction["rt"]
             if cmd_asm in {"lbu" ,"lhu" ,"ll" ,"lw" ,"sb" ,"sc", "sh"}:
                 #signextendedImm
-                r1 = BinaryStrOp.getConstant(self.instruction["immediate"], isSigned = True) + "($" + self.instruction["rs"]+")" 
+                r1 = BinaryStrOp.getConstant(base2 = self.instruction["immediate"], isSigned = True) + "($" + self.instruction["rs"]+")" 
             elif cmd_asm == "lui":
-                r1 = BinaryStrOp.getConstant(self.instruction["immediate"], isSigned = True)#16 bit
+                r1 = BinaryStrOp.getConstant(base2 = self.instruction["immediate"], isSigned = True)#16 bit
             else:
                 r1 = "$"+self.instruction["rs"]
                 if cmd_asm in {"beq", "bne"}: #branch
-                    # TODO: Addr_#### relative offset (0004/line) index capture addresses another function to render adress
-                    r2 = "Addr_" + storeJumpAddress(self.instruction["immediate"]) #TODO: check if address is out of bounds
+                    # Addr_#### relative offset (0004/line) index capture addresses another function to render adress
+                    r2 = "Addr_" + storeJumpAddress(self.instruction["immediate"]) # check if address is out of bounds
+                    if r2 == "Addr_":
+                        return (None, None, None)
                 elif cmd_asm in {"andi", "ori"}: #logical immediate
                     #zeroextendedImm 
-                    r2 = BinaryStrOp.getConstant(self.instruction["immediate"], isSigned = False)
+                    r2 = BinaryStrOp.getConstant(base2 = self.instruction["immediate"], isSigned = False)
                 else:
                     #signextendedImm 
-                    r2 = BinaryStrOp.getConstant(self.instruction["immediate"], isSigned = True)   
+                    r2 = BinaryStrOp.getConstant(base2 = self.instruction["immediate"], isSigned = True)   
         elif (cmd_type == "R"):
-            r0 = self.instruction["rd"]
+            r0 = "$"+self.instruction["rd"]
             if cmd_asm in {"sll","srl"}:
                 r1 = "$"+self.instruction["rt"]
                 r2 = "$"+self.instruction["shamt"]
@@ -205,10 +247,10 @@ class MIPSDecoder: """converts 32bit hex instructions to MIPS Assembly code with
             #store hex
             self.jump_Addr.append(addr_base16)
         return addr_base16
-            
-            
-class BinaryStrOp: """Helper class for base2 operations"""
-    def getConstant(self, base2, isSigned):
+                   
+class BinaryStrOp: 
+    """Helper class for base2 operations"""
+    def getConstant(base2, isSigned):
         sign = ''
         base10 = ""
         if isSigned:
@@ -222,21 +264,21 @@ class BinaryStrOp: """Helper class for base2 operations"""
             
         return sign + base10
            
-    def invert(self, base2):
-        b_num = list(base2)
-        value = list(base2)
+    def invert(base2):
+        b_num = base2
+        value = base2
         
         for i in range(len(b_num)):
-        	digit = b_num.pop()
-        	if digit == '1':
-        		value[i] = '0'
+            digit = b_num.pop()
+            if digit == '1':
+                value[i] = '0'
             else:
                 value[i] = '1'
                 
         return "".join(value)
         
-    def add(self, base2):
-        b_num = list(base2)
+    def add(base2):
+        b_num = base2
         value = 0
         for i in range(len(b_num)):
         	digit = b_num.pop()
@@ -245,6 +287,6 @@ class BinaryStrOp: """Helper class for base2 operations"""
                 
         return value
         
-        
-filename = str(input())
-MIPSDisassembler(filename)
+    
+f = input("myDiassembler ")
+MIPSDisassembler(filename = f)
